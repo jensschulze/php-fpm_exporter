@@ -97,7 +97,7 @@ func TestCannotUnmarshalNumberIssue10(t *testing.T) {
 }
 
 // https://github.com/hipages/php-fpm_exporter/issues/24
-func TestInvalidCharacterIssue24(t *testing.T) {
+func TestInvalidCharacterIssue24(t *testing.T) { //revive:disable-line:unused-parameter
 	// todo: Implement fcgi client dependency injection to allow testing of Pool.Update
 }
 

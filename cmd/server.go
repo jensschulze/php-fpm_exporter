@@ -15,9 +15,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,6 +35,7 @@ var (
 	metricsEndpoint  string
 	scrapeURIs       []string
 	fixProcessCount  bool
+	constLabelValues []string
 )
 
 // serverCmd represents the server command
@@ -45,7 +48,7 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, args []string) { //revive:disable-line:unused-parameter
 		log.Infof("Starting server on %v with path %v", listeningAddress, metricsEndpoint)
 
 		pm := phpfpm.PoolManager{}
@@ -54,7 +57,12 @@ to quickly create a Cobra application.`,
 			pm.Add(uri)
 		}
 
-		exporter := phpfpm.NewExporter(pm)
+		constLabels, err := parseConstLabels(constLabelValues)
+		if err != nil {
+			log.Fatalf("Invalid --prometheus.const-label value: %v", err)
+		}
+
+		exporter := phpfpm.NewExporter(pm, constLabels)
 
 		if fixProcessCount {
 			log.Info("Idle/Active/Total Processes will be calculated by php-fpm_exporter.")
@@ -72,7 +80,7 @@ to quickly create a Cobra application.`,
 		}
 
 		http.Handle(metricsEndpoint, promhttp.Handler())
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { //revive:disable-line:unused-parameter
 			_, err := w.Write([]byte(`<html>
 			 <head><title>php-fpm_exporter</title></head>
 			 <body>
@@ -125,6 +133,7 @@ func init() {
 	serverCmd.Flags().StringVar(&metricsEndpoint, "web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	serverCmd.Flags().StringSliceVar(&scrapeURIs, "phpfpm.scrape-uri", []string{"tcp://127.0.0.1:9000/status"}, "FastCGI address, e.g. unix:///tmp/php.sock;/status or tcp://127.0.0.1:9000/status")
 	serverCmd.Flags().BoolVar(&fixProcessCount, "phpfpm.fix-process-count", false, "Enable to calculate process numbers via php-fpm_exporter since PHP-FPM sporadically reports wrong active/idle/total process numbers.")
+	serverCmd.Flags().StringArrayVar(&constLabelValues, "prometheus.const-label", nil, "Repeatable. Add constant label(s) to all metrics in key=value format.")
 
 	// Workaround since vipers BindEnv is currently not working as expected (see https://github.com/spf13/viper/issues/461)
 
@@ -133,7 +142,62 @@ func init() {
 		"PHP_FPM_WEB_TELEMETRY_PATH": "web.telemetry-path",
 		"PHP_FPM_SCRAPE_URI":         "phpfpm.scrape-uri",
 		"PHP_FPM_FIX_PROCESS_COUNT":  "phpfpm.fix-process-count",
+		"CONST_LABELS":               "prometheus.const-label",
 	}
 
 	mapEnvVars(envs, serverCmd)
+}
+
+func parseConstLabels(inputs []string) (prometheus.Labels, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	labels := prometheus.Labels{}
+
+	for _, input := range inputs {
+		for _, part := range strings.Split(input, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+
+			key, value, err := parseLabelPair(part)
+			if err != nil {
+				return nil, err
+			}
+
+			if _, exists := labels[key]; exists {
+				return nil, fmt.Errorf("duplicate label key %q", key)
+			}
+
+			labels[key] = value
+		}
+	}
+
+	if len(labels) == 0 {
+		return nil, nil
+	}
+
+	return labels, nil
+}
+
+func parseLabelPair(input string) (string, string, error) {
+	parts := strings.SplitN(input, "=", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("expected key=value")
+	}
+
+	key := strings.TrimSpace(parts[0])
+	value := strings.TrimSpace(parts[1])
+
+	if key == "" {
+		return "", "", fmt.Errorf("label key cannot be empty")
+	}
+
+	if value == "" {
+		return "", "", fmt.Errorf("label value cannot be empty")
+	}
+
+	return key, value, nil
 }

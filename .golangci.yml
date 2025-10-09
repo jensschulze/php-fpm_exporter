@@ -1,31 +1,86 @@
+version: "2"
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
+  default: none
   enable:
-    - deadcode
     - depguard
     - dupl
     - errcheck
-#    - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - revive
     - gosec
-    - gosimple
     - govet
     - ineffassign
-#    - lll
     - misspell
     - nakedret
-    - exportloopref
+    - revive
     - staticcheck
-    - structcheck
-#    - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+  settings:
+    depguard:
+      rules:
+        main:
+          # Defines package matching behavior. Available modes:
+          # - `original`: allowed if it doesn't match the deny list and either matches the allow list or the allow list is empty.
+          # - `strict`: allowed only if it matches the allow list and either doesn't match the deny list or the allow rule is more specific (longer) than the deny rule.
+          # - `lax`: allowed if it doesn't match the deny list or the allow rule is more specific (longer) than the deny rule.
+          # Default: "original"
+          list-mode: lax
+          # List of file globs that will match this list of settings to compare against.
+          # By default, if a path is relative, it is relative to the directory where the golangci-lint command is executed.
+          # The placeholder '${base-path}' is substituted with a path relative to the mode defined with `run.relative-path-mode`.
+          # The placeholder '${config-path}' is substituted with a path relative to the configuration file.
+          # Default: $all
+          files:
+            - "!**/*_a _file.go"
+          # List of allowed packages.
+          # Entries can be a variable (starting with $), a string prefix, or an exact match (if ending with $).
+          # Default: []
+          allow:
+            - $gostd
+            - github.com/hipages/php-fpm_exporter/cmd
+            - github.com/prometheus/client_golang/prometheus
+            - github.com/spf13/cobra
+            - github.com/stretchr/testify/assert
+            - github.com/tomasen/fcgi_client
+          # List of packages that are not allowed.
+          # Entries can be a variable (starting with $), a string prefix, or an exact match (if ending with $).
+          # Default: []
+#          deny:
+#            - pkg: "math/rand$"
+#              desc: use math/rand/v2
+#            - pkg: "github.com/sirupsen/logrus"
+#              desc: not allowed
+#            - pkg: "github.com/pkg/errors"
+#              desc: Should be replaced by standard lib errors package
+
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+#issues:
+#  exclude-rules:
+#    - path: phpfpm/exporter_test\.go
+#      linters:
+#        - depguard

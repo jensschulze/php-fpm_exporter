@@ -17,7 +17,7 @@ package phpfpm
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -178,7 +178,7 @@ func (p *Pool) Update() (err error) {
 
 	defer resp.Body.Close()
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return p.error(err)
 	}
@@ -285,7 +285,7 @@ func (t *timestamp) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// This is because of bug in php-fpm that can return 'request duration' which can't
+// This is because of a bug in php-fpm that can return 'request duration' which can't
 // fit to int64. For details check links:
 // https://bugs.php.net/bug.php?id=62382
 // https://serverfault.com/questions/624977/huge-request-duration-value-for-a-particular-php-script

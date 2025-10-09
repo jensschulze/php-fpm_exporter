@@ -24,7 +24,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of php-fpm_exporter",
 	Long:  `All software has versions. This is php-fpm_exporter's'`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, args []string) { //revive:disable-line:unused-parameter
 		fmt.Printf("php-fpm_exporter %v\n", Version)
 	},
 }
