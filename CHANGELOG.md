@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/jensschulze/php-fpm_exporter/compare/v1.0.0...v1.0.1) (2025-10-11)
+
+
+### Bug Fixes
+
+* **ci:** mixup of Docker Hub and Github repo name ([cf9a95d](https://github.com/jensschulze/php-fpm_exporter/commit/cf9a95d981c93a60a7418c3a0ecab9375aaa34b8))
+
 ## 1.0.0 (2025-10-11)
 
 
