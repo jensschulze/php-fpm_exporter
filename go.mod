@@ -1,4 +1,4 @@
-module github.com/hipages/php-fpm_exporter
+module github.com/jensschulze/php-fpm_exporter
 
 go 1.25
 
