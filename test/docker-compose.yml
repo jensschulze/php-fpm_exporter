@@ -10,12 +10,12 @@ services:
       - "./prometheus.yml:/etc/prometheus/prometheus.yml"
 
   phpfpm:
-    image: hipages/php
+    image: jensschulze/php
     environment:
       PHP_FPM_PM_STATUS_PATH: "/status"
 
   exporter:
-    image: hipages/php-fpm_exporter:latest
+    image: jensschulze/php-fpm_exporter:latest
     ports:
       - "9253:9253"
     environment:

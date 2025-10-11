@@ -3,28 +3,28 @@ version: "3"
 services:
 
   phpfpm1:
-    image: hipages/php
+    image: jensschulze/php
     ports:
       - "9031:9000"
     environment:
       PHP_FPM_PM_STATUS_PATH: "/status"
 
   phpfpm2:
-    image: hipages/php
+    image: jensschulze/php
     ports:
       - "9032:9000"
     environment:
       PHP_FPM_PM_STATUS_PATH: "/status"
 
   phpfpm3:
-    image: hipages/php
+    image: jensschulze/php
     ports:
       - "9033:9000"
     environment:
       PHP_FPM_PM_STATUS_PATH: "/status"
 
   exporter:
-    image: hipages/php-fpm_exporter:latest
+    image: jensschulze/php-fpm_exporter:latest
     ports:
       - "9253:9253"
     environment:

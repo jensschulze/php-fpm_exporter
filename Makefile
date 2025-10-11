@@ -1,4 +1,8 @@
-.PHONY: test
+.PHONY: help, deps, test, test-coverage, test-coverage-html, test-e2e, lint, fmt, docker, build, full
+
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
 
 .DEFAULT_GOAL := help
 help: ## List targets & descriptions
@@ -26,4 +30,20 @@ lint: ## Run linters
 	golangci-lint run
 
 fmt: ## Fix formatting issues
-	goimports -w .
+	gofmt -w .
+
+docker: ## Build docker image
+	@echo "Version: $(VERSION)"
+	@echo "Build date: $(BUILD_DATE)"
+	@echo "Git commit: $(GIT_COMMIT)"
+	docker buildx build --pull --progress=plain \
+		--build-arg VERSION="$(VERSION)" \
+		--build-arg BUILD_DATE="$(BUILD_DATE)" \
+		--build-arg GIT_COMMIT="$(GIT_COMMIT)" \
+		-t jdschulze/php-fpm_exporter:$(VERSION) .
+
+build: ## Build binary
+	mkdir -p dist
+	CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=$(VERSION) -X main.date=$(BUILD_DATE) -X main.commit=$(GIT_COMMIT)" -trimpath -o ./dist/php-fpm_exporter .
+
+full: fmt lint test test-coverage build ## Local build pipeline

@@ -1,0 +1,252 @@
+name: Github Pipeline
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run unit tests with coverage
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./pkg/... ./internal/... ./cmd/...
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "Test coverage: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+
+  linting:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --config .golangci.yml
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, linting]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+
+      - name: Build Binary
+        run: |
+          make build
+
+      - name: Run Integration Tests
+        run: |
+          # For integration tests, we just run them without coverage since they test the binary via HTTP
+          go test -v -tags=integration -race ./tests/integration/...
+
+  docker-build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [unit-tests, linting, integration-tests]
+    # Only build Docker images for the branches and tags specified above, not for PRs
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: "docker.io"
+      IMAGE_NAME: "jdschulze/php-fpm_exporter"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Determine build variables
+        id: build-vars
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+          echo "git_commit=${GIT_COMMIT}" >> $GITHUB_OUTPUT
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            type=edge,branch=main
+            type=sha,format=short
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+          labels: |
+            org.opencontainers.image.version=${{ steps.build-vars.outputs.version }}
+            org.opencontainers.image.title=php-fpm_exporter
+            org.opencontainers.image.description=A prometheus exporter for PHP-FPM
+            org.opencontainers.image.source=https://github.com/jensschulze/php-fpm_exporter
+            org.opencontainers.image.revision={{sha}}
+            org.opencontainers.image.created=${{ steps.build-vars.outputs.build_date }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.build-vars.outputs.version }}
+            BUILD_DATE=${{ steps.build-vars.outputs.build_date }}
+            GIT_COMMIT=${{ steps.build-vars.outputs.git_commit }}
+
+      - name: Update Docker Hub README
+        uses: peter-evans/dockerhub-description@v5
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: jensschulze/php-fpm_exporter
+
+  coverage-summary:
+    name: Coverage Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    if: always()
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: "*coverage*"
+          merge-multiple: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+
+      - name: Generate coverage report
+        run: |
+          echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f coverage.out ]; then
+            UNIT_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+            echo "🧪 **Unit Tests Coverage:** $UNIT_COVERAGE" >> $GITHUB_STEP_SUMMARY
+
+            # Show top uncovered functions
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 Coverage Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            go tool cover -func=coverage.out | tail -10 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🧪 **Unit Tests Coverage:** Not available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "🔗 **Integration Tests:** Functional testing (no coverage measurement)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📋 [Download detailed coverage reports from artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      repository-projects: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Release Please
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: go
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Set up Go
+        if: steps.release.outputs.release_created
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+
+      - name: Build Binary
+        if: steps.release.outputs.release_created
+        run: |
+          make build
+
+      - name: Upload Release Assets
+        if: steps.release.outputs.release_created
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ steps.release.outputs.tag_name }} dist/php-fpm_exporter
