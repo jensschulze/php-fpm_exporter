@@ -168,7 +168,8 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: jensschulze/php-fpm_exporter
+          repository: jdschulze/php-fpm_exporter
+          short-description: ${{ github.event.repository.description }}
 
   coverage-summary:
     name: Coverage Summary
