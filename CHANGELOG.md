@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/jensschulze/php-fpm_exporter/compare/v2.3.0...v2.3.1) (2025-10-22)
+
+
+### Bug Fixes
+
+* apply const labels to runtime metrics ([9782bb5](https://github.com/jensschulze/php-fpm_exporter/commit/9782bb5dff46a0486abda1c545521ac4b0e35fe0))
+
 ## [1.0.1](https://github.com/jensschulze/php-fpm_exporter/compare/v1.0.0...v1.0.1) (2025-10-11)
 
 
