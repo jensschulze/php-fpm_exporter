@@ -40,7 +40,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage to GitHub
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: |
@@ -65,7 +65,7 @@ jobs:
           go-version: "stable"
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           args: --config .golangci.yml
@@ -180,7 +180,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download coverage artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: "*coverage*"
           merge-multiple: true
