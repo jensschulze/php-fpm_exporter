@@ -20,7 +20,7 @@ RUN TZ=UTC CGO_ENABLED=0 go build \
       -ldflags "-s -w -X main.version=${VERSION} -X main.date=${BUILD_DATE} -X main.commit=${GIT_COMMIT}" \
       -trimpath -o /dist/php-fpm_exporter
 
-FROM alpine:3.22.2 AS artifact
+FROM alpine:3.23.0 AS artifact
 
 LABEL org.opencontainers.image.authors="Jens Schulze"
 
