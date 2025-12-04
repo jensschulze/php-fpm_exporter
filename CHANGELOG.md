@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.3.2](https://github.com/jensschulze/php-fpm_exporter/compare/v2.3.1...v2.3.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/spf13/cobra to v1.10.2 ([4ddace5](https://github.com/jensschulze/php-fpm_exporter/commit/4ddace5cff0178b7f94540a059cc41a8fe835bd6))
+* **deps:** update module github.com/spf13/cobra to v1.10.2 ([091fcdb](https://github.com/jensschulze/php-fpm_exporter/commit/091fcdb077a1586b2ecf278af9beff980cf7a463))
+
 ## [2.3.1](https://github.com/jensschulze/php-fpm_exporter/compare/v2.3.0...v2.3.1) (2025-10-22)
 
 
