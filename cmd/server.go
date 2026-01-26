@@ -15,11 +15,9 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -32,11 +30,11 @@ import (
 
 // Configuration variables
 var (
-	listeningAddress string
-	metricsEndpoint  string
-	scrapeURIs       []string
-	fixProcessCount  bool
-	constLabelValues []string
+	listeningAddress  string
+	metricsEndpoint   string
+	scrapeURIs        []string
+	fixProcessCount   bool
+	phpfpmMetricsOnly bool
 )
 
 // serverCmd represents the server command
@@ -58,19 +56,14 @@ to quickly create a Cobra application.`,
 			pm.Add(uri)
 		}
 
-		constLabels, err := parseConstLabels(constLabelValues)
-		if err != nil {
-			log.Fatalf("Invalid --prometheus.const-label value: %v", err)
-		}
-
-		exporter := phpfpm.NewExporter(pm, constLabels)
+		exporter := phpfpm.NewExporter(pm)
 
 		if fixProcessCount {
 			log.Info("Idle/Active/Total Processes will be calculated by php-fpm_exporter.")
 			exporter.CountProcessState = true
 		}
 
-		registry, registerer := newMetricsRegistry(constLabels, exporter)
+		registry := newMetricsRegistry(exporter, phpfpmMetricsOnly)
 
 		srv := &http.Server{
 			Addr: listeningAddress,
@@ -81,7 +74,11 @@ to quickly create a Cobra application.`,
 		}
 
 		metricsHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		http.Handle(metricsEndpoint, promhttp.InstrumentMetricHandler(registerer, metricsHandler))
+		if phpfpmMetricsOnly {
+			http.Handle(metricsEndpoint, metricsHandler)
+		} else {
+			http.Handle(metricsEndpoint, promhttp.InstrumentMetricHandler(registry, metricsHandler))
+		}
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { //revive:disable-line:unused-parameter
 			_, err := w.Write([]byte(`<html>
 		 <head><title>php-fpm_exporter</title></head>
@@ -132,90 +129,32 @@ func init() {
 	RootCmd.AddCommand(serverCmd)
 
 	serverCmd.Flags().StringVar(&listeningAddress, "web.listen-address", ":9253", "Address on which to expose metrics and web interface.")
+	serverCmd.Flags().BoolVar(&phpfpmMetricsOnly, "web.phpfpm-metrics-only", false, "Only expose PHP-FPM metrics, excluding Go runtime, process, and promhttp metrics.")
 	serverCmd.Flags().StringVar(&metricsEndpoint, "web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	serverCmd.Flags().StringSliceVar(&scrapeURIs, "phpfpm.scrape-uri", []string{"tcp://127.0.0.1:9000/status"}, "FastCGI address, e.g. unix:///tmp/php.sock;/status or tcp://127.0.0.1:9000/status")
 	serverCmd.Flags().BoolVar(&fixProcessCount, "phpfpm.fix-process-count", false, "Enable to calculate process numbers via php-fpm_exporter since PHP-FPM sporadically reports wrong active/idle/total process numbers.")
-	serverCmd.Flags().StringArrayVar(&constLabelValues, "prometheus.const-label", nil, "Repeatable. Add constant label(s) to all metrics in key=value format.")
 
 	// Workaround since vipers BindEnv is currently not working as expected (see https://github.com/spf13/viper/issues/461)
 
 	envs := map[string]string{
-		"PHP_FPM_WEB_LISTEN_ADDRESS": "web.listen-address",
-		"PHP_FPM_WEB_TELEMETRY_PATH": "web.telemetry-path",
-		"PHP_FPM_SCRAPE_URI":         "phpfpm.scrape-uri",
-		"PHP_FPM_FIX_PROCESS_COUNT":  "phpfpm.fix-process-count",
-		"CONST_LABELS":               "prometheus.const-label",
+		"PHP_FPM_WEB_LISTEN_ADDRESS":      "web.listen-address",
+		"PHP_FPM_WEB_PHPFPM_METRICS_ONLY": "web.phpfpm-metrics-only",
+		"PHP_FPM_WEB_TELEMETRY_PATH":      "web.telemetry-path",
+		"PHP_FPM_SCRAPE_URI":              "phpfpm.scrape-uri",
+		"PHP_FPM_FIX_PROCESS_COUNT":       "phpfpm.fix-process-count",
 	}
 
 	mapEnvVars(envs, serverCmd)
 }
 
-func parseConstLabels(inputs []string) (prometheus.Labels, error) {
-	if len(inputs) == 0 {
-		return nil, nil
-	}
-
-	labels := prometheus.Labels{}
-
-	for _, input := range inputs {
-		for _, part := range strings.Split(input, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
-			}
-
-			key, value, err := parseLabelPair(part)
-			if err != nil {
-				return nil, err
-			}
-
-			if _, exists := labels[key]; exists {
-				return nil, fmt.Errorf("duplicate label key %q", key)
-			}
-
-			labels[key] = value
-		}
-	}
-
-	if len(labels) == 0 {
-		return nil, nil
-	}
-
-	return labels, nil
-}
-
-func parseLabelPair(input string) (string, string, error) {
-	parts := strings.SplitN(input, "=", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("expected key=value")
-	}
-
-	key := strings.TrimSpace(parts[0])
-	value := strings.TrimSpace(parts[1])
-
-	if key == "" {
-		return "", "", fmt.Errorf("label key cannot be empty")
-	}
-
-	if value == "" {
-		return "", "", fmt.Errorf("label value cannot be empty")
-	}
-
-	return key, value, nil
-}
-
-func newMetricsRegistry(constLabels prometheus.Labels, exporter prometheus.Collector) (*prometheus.Registry, prometheus.Registerer) {
+func newMetricsRegistry(exporter prometheus.Collector, phpfpmOnly bool) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(exporter)
 
-	registerer := prometheus.Registerer(registry)
-
-	if len(constLabels) > 0 {
-		registerer = prometheus.WrapRegistererWith(constLabels, registerer)
+	if !phpfpmOnly {
+		registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+		registry.MustRegister(collectors.NewGoCollector())
 	}
 
-	registerer.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	registerer.MustRegister(collectors.NewGoCollector())
-
-	return registry, registerer
+	return registry
 }

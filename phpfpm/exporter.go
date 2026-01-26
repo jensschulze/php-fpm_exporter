@@ -53,9 +53,7 @@ type Exporter struct {
 }
 
 // NewExporter creates a new Exporter for a PoolManager and configures the necessary metrics.
-func NewExporter(pm PoolManager, constLabels prometheus.Labels) *Exporter {
-	cl := cloneConstLabels(constLabels)
-
+func NewExporter(pm PoolManager) *Exporter {
 	return &Exporter{
 		PoolManager: pm,
 
@@ -65,123 +63,110 @@ func NewExporter(pm PoolManager, constLabels prometheus.Labels) *Exporter {
 			prometheus.BuildFQName(namespace, "", "up"),
 			"Could PHP-FPM be reached?",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		scrapeFailues: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "scrape_failures"),
 			"The number of failures scraping from PHP-FPM.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		startSince: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "start_since"),
 			"The number of seconds since FPM has started.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		acceptedConnections: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "accepted_connections"),
 			"The number of requests accepted by the pool.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		listenQueue: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "listen_queue"),
 			"The number of requests in the queue of pending connections.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		maxListenQueue: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "max_listen_queue"),
 			"The maximum number of requests in the queue of pending connections since FPM has started.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		listenQueueLength: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "listen_queue_length"),
 			"The size of the socket queue of pending connections.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		idleProcesses: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "idle_processes"),
 			"The number of idle processes.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		activeProcesses: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "active_processes"),
 			"The number of active processes.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		totalProcesses: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "total_processes"),
 			"The number of idle + active processes.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		maxActiveProcesses: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "max_active_processes"),
 			"The maximum number of active processes since FPM has started.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		maxChildrenReached: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "max_children_reached"),
 			"The number of times, the process limit has been reached, when pm tries to start more children (works only for pm 'dynamic' and 'ondemand').",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		slowRequests: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "slow_requests"),
 			"The number of requests that exceeded your 'request_slowlog_timeout' value.",
 			[]string{"pool", "scrape_uri"},
-			cl),
+			nil),
 
 		processRequests: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "process_requests"),
 			"The number of requests the process has served.",
 			[]string{"pool", "child", "scrape_uri"},
-			cl),
+			nil),
 
 		processLastRequestMemory: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "process_last_request_memory"),
 			"The max amount of memory the last request consumed.",
 			[]string{"pool", "child", "scrape_uri"},
-			cl),
+			nil),
 
 		processLastRequestCPU: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "process_last_request_cpu"),
 			"The %cpu the last request consumed.",
 			[]string{"pool", "child", "scrape_uri"},
-			cl),
+			nil),
 
 		processRequestDuration: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "process_request_duration"),
 			"The duration in microseconds of the requests.",
 			[]string{"pool", "child", "scrape_uri"},
-			cl),
+			nil),
 
 		processState: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "process_state"),
 			"The state of the process (Idle, Running, ...).",
 			[]string{"pool", "child", "state", "scrape_uri"},
-			cl),
+			nil),
 	}
-}
-
-func cloneConstLabels(labels prometheus.Labels) prometheus.Labels {
-	if len(labels) == 0 {
-		return nil
-	}
-
-	cloned := make(prometheus.Labels, len(labels))
-	for k, v := range labels {
-		cloned[k] = v
-	}
-
-	return cloned
 }
 
 // Collect updates the Pools and sends the collected metrics to Prometheus
