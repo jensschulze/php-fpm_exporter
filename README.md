@@ -63,10 +63,10 @@ The `server` command runs the server required for prometheus to retrieve the sta
 | Option                      | Description                                                                                      | Environment variable         | Default value   |
 |-----------------------------|--------------------------------------------------------------------------------------------------|------------------------------|-----------------|
 | `--web.listen-address`      | Address on which to expose metrics and web interface.                                            | `PHP_FPM_WEB_LISTEN_ADDRESS` | [`:9253`](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)         |
+| `--web.phpfpm-metrics-only` | Only expose PHP-FPM metrics, excluding Go runtime, process, and promhttp metrics.                | `PHP_FPM_WEB_PHPFPM_METRICS_ONLY`| `false`         |
 | `--web.telemetry-path`      | Path under which to expose metrics.                                                              | `PHP_FPM_WEB_TELEMETRY_PATH` | `/metrics`      |
 | `--phpfpm.scrape-uri`       | FastCGI address, e.g. unix:///tmp/php.sock;/status or tcp://127.0.0.1:9000/status                 | `PHP_FPM_SCRAPE_URI`         | `tcp://127.0.0.1:9000/status` |
 | `--phpfpm.fix-process-count`| Enable to calculate process numbers via php-fpm_exporter since PHP-FPM sporadically reports wrong active/idle/total process numbers. | `PHP_FPM_FIX_PROCESS_COUNT`  | `false` |
-| `--prometheus.const-label`  | Repeatable. Add constant label(s) in `key=value` form; accepts comma lists and merges duplicates. | `CONST_LABELS`               | _unset_         |
 | `--log.level`               | Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal] (default "error") | `PHP_FPM_LOG_LEVEL` | info |
 
 ### Why `--phpfpm.fix-process-count`?
@@ -106,15 +106,6 @@ If you like to have a more granular reporting please use `phpfpm_process_state`.
 - Run as server and enable process count fix via environment variable:
   ```
   PHP_FPM_FIX_PROCESS_COUNT=1 go run main.go server --web.listen-address ":12345" --log.level=debug
-  ```
-
-- Run as server with a constant label applied to every metric:
-  ```
-  php-fpm_exporter server --prometheus.const-label env=prod --prometheus.const-label team=observability
-  ```
-  The same can be set via environment variable:
-  ```
-  CONST_LABELS="env=prod,team=observability" go run main.go server
   ```
 
 ### Docker Examples
