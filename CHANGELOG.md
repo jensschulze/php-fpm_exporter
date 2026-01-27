@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.0.0](https://github.com/jensschulze/php-fpm_exporter/compare/v2.3.1...v3.0.0) (2026-01-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove `--prometheus.const-label`
+
+### Features
+
+* add `--web.phpfpm-metrics-only` flag ([1435d9b](https://github.com/jensschulze/php-fpm_exporter/commit/1435d9b72fcbbfd97eeec5e77d9afc6fbc33c157))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/sirupsen/logrus to v1.9.4 ([6037755](https://github.com/jensschulze/php-fpm_exporter/commit/60377557faaec16ae08830031c3789a40a5ef78e))
+* **deps:** update module github.com/sirupsen/logrus to v1.9.4 ([5a76f33](https://github.com/jensschulze/php-fpm_exporter/commit/5a76f331b579bc1dc8295d9e4175762f9faeef0e))
+* **deps:** update module github.com/spf13/cobra to v1.10.2 ([4ddace5](https://github.com/jensschulze/php-fpm_exporter/commit/4ddace5cff0178b7f94540a059cc41a8fe835bd6))
+* **deps:** update module github.com/spf13/cobra to v1.10.2 ([091fcdb](https://github.com/jensschulze/php-fpm_exporter/commit/091fcdb077a1586b2ecf278af9beff980cf7a463))
+
 ## [2.3.1](https://github.com/jensschulze/php-fpm_exporter/compare/v2.3.0...v2.3.1) (2025-10-22)
 
 
