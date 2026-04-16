@@ -1,4 +1,4 @@
-FROM golang:1.25.7-alpine AS build-env
+FROM golang:1.26.2-alpine AS build-env
 
 ARG VERSION=dev
 ARG BUILD_DATE=unknown
@@ -20,7 +20,7 @@ RUN TZ=UTC CGO_ENABLED=0 go build \
       -ldflags "-s -w -X main.version=${VERSION} -X main.date=${BUILD_DATE} -X main.commit=${GIT_COMMIT}" \
       -trimpath -o /dist/php-fpm_exporter
 
-FROM alpine:3.23.3 AS artifact
+FROM alpine:3.23.4 AS artifact
 
 LABEL org.opencontainers.image.authors="Jens Schulze"
 
